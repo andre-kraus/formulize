@@ -270,6 +270,13 @@ $options['ele_delim'] = $ele_delim;
 $options['ele_delim_custom_value'] = $ele_delim_custom_value;
 $options['ele_uitext'] = $ele_uitext;
 $options['typetemplate'] = "db:admin/element_type_".$ele_type.".html";
+//try {
+//echo("XOOPS: " . $xoopsTpl->display($options['typetemplate']));
+//} catch(Exception $e) {
+//    $xoopsTpl->display('db:missing_template.html');
+//}
+$options['typetemplateexists'] = $xoopsTpl->template_exists(XOOPS_ROOT_PATH."/modules/formulize/templates/admin/element_type_".$ele_type.".html");
+    //file_exists("../templates/admin/element_type_".$ele_type.".html");
 
 // setup various special things per element, including ele_value
 if($ele_type=='text') {
