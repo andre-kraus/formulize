@@ -408,7 +408,17 @@
      */
     function cacheExportFile($archivePath){
         // copies the archive file to the cache folder and renames the copied file to the session id
-        rename($archivePath, XOOPS_ROOT_PATH . "\\modules\\formulize\\cache\\".session_id().".zip");
+        $filepath = getCachedExportFilepath();
+        rename($archivePath, $filepath);
+        return $filepath;
+    }
+
+    /*
+     * getCachedExportFilepath function just returns the filepath to the cached export zip
+     *  with the current session id in the filename
+     */
+    function getCachedExportFilepath() {
+        return XOOPS_ROOT_PATH . "\\modules\\formulize\\cache\\sync-export-".session_id().".zip";
     }
     
     /*
