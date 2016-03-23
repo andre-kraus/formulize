@@ -9,7 +9,6 @@ $syncimport['content'] = array();
 $syncimport['content']['elements'] = array();
 
 if (isset($_POST['syncimport'])) {
-    error_log("sync import -ing");
     // if this post was sent then load the cached comparison data and commit it to the database
     $catalog = new SyncCompareCatalog();
     if ($catalog->loadCachedChanges()) {
