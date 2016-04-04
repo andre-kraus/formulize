@@ -11,18 +11,30 @@ class SyncCompareCatalog {
     private $metadata = null;
 
     /*
-     * tableName : {
+     * tableName :
      *      createTable: TRUE/FALSE
      *      fields: [...]   # list of fields in this table
      *      inserts: [
-     *          { record: [..], metadata: [..] }
+     *          [..] // contains entire record
      *      ]
      *      updates: [
-     *          { record: [..], metadata: [..] } // contains entire record, with updated values in it
+     *          [..] // contains entire record
      *      ]
-     * }
+     *      deletes:  [
+     *          [..] // contains entire record
+     *      ]
      */
     private $changes = array();
+
+    // array to keep track of which records have been seen, used for detecting deletions
+    /*
+     * tableName: [
+     *      rec1_prim_key_val,
+     *      rec2_prim_key_val,
+     *      ...
+     * ]
+     */
+    private $rec_track = array();
 
     function __construct() {
         // open a connection to the database
@@ -36,12 +48,20 @@ class SyncCompareCatalog {
     }
 
     function __destruct() {
-        // explicitly null some variables so they are garbage collected
+        // explicitly null some variables so they are definitely garbage collected
         $this->db = null;
         $this->metadata = null;
     }
 
     // === PUBLIC FUNCTIONS ===
+
+    public function addTable($tableName, $fields) {
+        if (!isset($this->changes[$tableName])) {
+            $tableExists = $this->tableExists($tableName);
+            $this->changes[$tableName] = array("fields" => $fields, "inserts" => array(),
+                "updates" => array(), "deletes" => array(), "createTable" => !$tableExists);
+        }
+    }
 
     public function addRecord($tableName, $record, $fields) {
         // there should be one record value for each field string
@@ -49,35 +69,59 @@ class SyncCompareCatalog {
             throw new Exception("compare(...) requires record and fields to have the same number of values");
         }
 
-        // if the table doesn't exist, cause error exception
-        if (!$this->tableExists($tableName)) {
-            $this->addTableChange($tableName, $fields, $record);
+        $primaryField = $this->getPrimaryField($tableName);
+        $recPrimaryValue = $record[array_search($primaryField, $fields)];
+
+        // track the record
+        $rec_track_table = &$this->rec_track[$tableName];
+        if (!$rec_track_table)  // create table array if it doesn't exist
+            $this->rec_track[$tableName] = array();
+        $rec_track_table[] = (string)$recPrimaryValue;
+
+        // check db to see if the record exists
+        $dbRecord = $this->getRecord($tableName, $primaryField, $recPrimaryValue);
+        if (!$dbRecord) {
+            $this->addRecChange("insert", $tableName, $fields, $record);
         }
-        else {
-            $primaryField = $this->getPrimaryField($tableName);
-            $recPrimaryValue = $record[array_search($primaryField, $fields)];
-
-            $result = $this->getRecord($tableName, $primaryField, $recPrimaryValue);
-            $recordExists = $result->rowCount() > 0;
-
-            if (!$recordExists) {
-                $this->addRecChange("insert", $tableName, $fields, $record);
-            } else {  // if the record exists, compare the data values, add any update statement to $compareResults
-                $dbRecord = $result->fetchAll()[0];
-
-                // compare each record field for changes
-                $isChanged = FALSE;
-                for ($i = 0; $i < count($record); $i++) {
-                    $field = $fields[$i];
-                    $value = $record[$i];
-                    $dbValue = (string)$dbRecord[$field];
-                    if ($dbValue != $value) {
-                        $isChanged = TRUE;
-                    }
+        else {  // compare the data values, add any update statement to $compareResults
+            // compare each record field for changes
+            $isChanged = FALSE;
+            for ($i = 0; $i < count($record); $i++) {
+                $field = $fields[$i];
+                $value = $record[$i];
+                $dbValue = (string)$dbRecord[$field];
+                if ($dbValue != $value) {
+                    $isChanged = TRUE;
                 }
-                if ($isChanged) {
-                    $this->addRecChange("update", $tableName, $fields, $record);
-                }
+            }
+            if ($isChanged) {
+                $this->addRecChange("update", $tableName, $fields, $record);
+            }
+        }
+    }
+
+    public function detectDeletions($tableName) {
+        if (!$this->tableExists($tableName))return; // no deletions possible if table doesn't exist here
+
+        $rec_track_table = &$this->rec_track[$tableName];
+        $primaryField = $this->getPrimaryField($tableName);
+
+        // get list of primary keys from db table
+        if ($tableName == "group_permission") { // special case where we only want formulize module records
+            $sql = "SELECT ".$primaryField." FROM ".prefixTable($tableName)." WHERE gperm_modid=".getFormulizeModId().";";
+        }
+        else { // default case of all records from table
+            $sql = "SELECT ".$primaryField." FROM ".prefixTable($tableName).";";
+        }
+        $result = $this->db->query($sql);
+        $primary_keys = $result->fetchAll(PDO::FETCH_COLUMN, 0); // fetch flat array only
+
+        // if a primary key is in the db but not in rec_track then it was deleted
+        foreach ($primary_keys as $value) {
+            if (!in_array((string)$value, $rec_track_table)) { // was deleted
+                $deleted_rec = $this->getRecord($tableName, $primaryField, $value);
+                $this->changes[$tableName]["deletes"][] = $deleted_rec;
+                $this->changes[$tableName]["deletes"][] = $deleted_rec;
             }
         }
     }
@@ -91,21 +135,31 @@ class SyncCompareCatalog {
         $descrs = array();
 
         foreach ($this->changes as $tableName => $tableInfo) {
+            if (count($tableInfo["inserts"]) == 0
+                && count($tableInfo["updates"]) == 0
+                && count($tableInfo["deletes"]) == 0
+                && $tableInfo["createTable"] == FALSE) {
+                continue; // if no changes in this table, and not a new table then dont bother
+            }
+
             $descrs[$tableName] = array("inserts"=>array(), "updates"=>array(), "deletes"=>array());
             $descrs[$tableName]["createTable"] = $tableInfo["createTable"];
 
             foreach ($tableInfo["inserts"] as $rec) {
                 $metadata = $this->getRecMetadata($tableName, "insert", $rec);
+                $metadata = array_filter($metadata); // remove any empty values
                 $descrs[$tableName]["inserts"][] = implode(" / ", $metadata);
             }
 
             foreach ($tableInfo["updates"] as $rec) {
                 $metadata = $this->getRecMetadata($tableName, "update", $rec);
+                $metadata = array_filter($metadata); // remove any empty values
                 $descrs[$tableName]["updates"][] = implode(" / ", $metadata);
             }
 
             foreach ($tableInfo["deletes"] as $rec) {
                 $metadata = $this->getRecMetadata($tableName, "delete", $rec);
+                $metadata = array_filter($metadata); // remove any empty values
                 $descrs[$tableName]["deletes"][] = implode(" / ", $metadata);
             }
         }
@@ -167,16 +221,6 @@ class SyncCompareCatalog {
 
     // === PRIVATE FUNCTIONS ===
 
-    private function addTableChange($tableName, $fields, $record) {
-        // if this is the first record of a table, create the data structure for it
-        if (!isset($this->changes[$tableName])) {
-            $this->changes[$tableName] = array("fields" => $fields, "inserts" => array(),
-                "updates" => array(), "deletes" => array(), "createTable" => TRUE);
-        }
-
-        $this->addRecChange("insert", $tableName, $fields, $record);
-    }
-
     private function addRecChange($type, $tableName, $fields, $record) {
         if ($type !== "insert" && $type !== "update" && $type !== "delete") {
             throw new Exception("SyncCompareCatalog::addRecChange() only supports 'insert'/'update' change types.");
@@ -187,12 +231,6 @@ class SyncCompareCatalog {
 
         // simple modification of change type for indexing into the $changes table data structure
         $typeArrayName = $type.'s';
-
-        // if this is the first record of a table, create the data structure for it
-        if (!isset($this->changes[$tableName])) {
-            $this->changes[$tableName] = array("fields" => $fields, "inserts" => array(),
-                "updates" => array(), "deletes" => array(), "createTable" => FALSE);
-        }
 
         // now add record to the correct list
         $changeTypeList = &$this->changes[$tableName][$typeArrayName];
@@ -206,8 +244,10 @@ class SyncCompareCatalog {
     }
 
     private function getRecord($tableName, $primaryField, $primaryValue) {
-        $result = $this->db->query('SELECT * FROM '.prefixTable($tableName).' WHERE '.$primaryField.' = "'.$primaryValue.'";');
-        return $result;
+        $result = $this->db->query('SELECT * FROM '.prefixTable($tableName).' WHERE '.$primaryField.' = "'.$primaryValue.'";')->fetchAll();
+        if (count($result) == 1)
+            return $result[0];
+        return FALSE; // return false if failed to find record
     }
 
     private function getPrimaryField($tableName) {
@@ -370,7 +410,7 @@ class SyncCompareCatalog {
         // add comma separated list of values
         foreach ($record as $field => $value) {
             $sanitizedValue = $this->db->quote($value);
-            $sql .= '"'.$sanitizedValue.'", ';
+            $sql .= "$sanitizedValue, ";
         }
         $sql = substr($sql, 0, -2); // remove the unnecessary trailing ', '
         $sql .= ');'; //close values brackets
@@ -388,14 +428,16 @@ class SyncCompareCatalog {
         $sql = 'UPDATE '.prefixTable($tableName).' SET ';
 
         foreach ($record as $field => $value) {
-            $sql .= $field.'="'.$value.'", ';
+            $quotedVal = $this->db->quote($value);
+            $sql .= $field."=$quotedVal, ";
         }
 
         // remove the unnecessary trailing ', '
         $sql = substr($sql, 0, -2);
 
         // add the where clause to specify which record to update
-        $sql .= ' WHERE '.$primaryField.'="'.$recPrimaryValue.'"';
+        $quotedVal = $this->db->quote($recPrimaryValue);
+        $sql .= " WHERE $primaryField=$quotedVal;";
 
         $result = $this->db->query($sql);
         // returns success/failure of query based on number of affected rows
@@ -405,7 +447,7 @@ class SyncCompareCatalog {
     // use the forms class to create a new form data table in the database
     private function commitCreateTable($tableName) {
         // get the fid for the data table based on the table name
-        $formHandle = substr($tableName, strlen(XOOPS_DB_PREFIX."_formulize_"));
+        $formHandle = substr($tableName, strlen("formulize_"));
         $formHandler =& xoops_getmodulehandler('forms', 'formulize');
         $fid = $formHandler->getByHandle($formHandle);
 

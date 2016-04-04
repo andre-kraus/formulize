@@ -386,9 +386,15 @@
             // iterate $csvFolderPath directory and import each file
             foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($csvFolderPath)) as $filePath){
                 if ($filePath->isDir()) continue; // skip "." and ".."
-                for ($line = 1; $line <= getNumDataRowsCSV($filePath); $line ++){
-                    $comparator->addRecord(getTableNameCSV($filePath)[0], getDataRowCSV($filePath, $line), getTableColsCSV($filePath));
+
+                $tableName = getTableNameCSV($filePath)[0];
+                $fields = getTableColsCSV($filePath);
+
+                $comparator->addTable($tableName, $fields); // add the table even if no records in it
+                for ($line = 1; $line <= getNumDataRowsCSV($filePath); $line ++) {
+                    $comparator->addRecord($tableName, getDataRowCSV($filePath, $line), $fields);
                 }
+                $comparator->detectDeletions($tableName); // detect deletions based on all table records
             }
             $comparator->cacheChanges();
         }else{
