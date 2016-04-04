@@ -7,6 +7,8 @@
         <{if !$content.catalog_error}>
         <div>
             <{if !$content.result}>
+
+            <{if count($content.elements) > 0}>
             <p>Review the synchronize import details before commiting the changes.</p>
 
             <h4>Table Changes:</h4>
@@ -18,6 +20,14 @@
                 <input type="submit" name="syncimport" value="Synchronize Import"/>
             </form>
             </p>
+            <{/if}>
+
+            <{if count($content.elements) == 0}>
+            <p>There were no detected changes for synchronization!</p>
+            <br>
+            <a href="ui.php/?page=synchronize">Back to Synchronize</a>
+            <{/if}>
+
             <{/if}>
 
             <{if $content.result}>

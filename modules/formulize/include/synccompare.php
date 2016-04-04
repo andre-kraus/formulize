@@ -121,7 +121,6 @@ class SyncCompareCatalog {
             if (!in_array((string)$value, $rec_track_table)) { // was deleted
                 $deleted_rec = $this->getRecord($tableName, $primaryField, $value);
                 $this->changes[$tableName]["deletes"][] = $deleted_rec;
-                $this->changes[$tableName]["deletes"][] = $deleted_rec;
             }
         }
     }
@@ -213,6 +212,13 @@ class SyncCompareCatalog {
                 foreach ($tableData["inserts"] as $rec) {
                     ($this->commitInsert($tableName, $rec, $fields)) ? $numSuccess++ : $numFail++;
                 }
+            }
+        }
+
+        // commit all deletes
+        foreach ($this->changes as $tableName => $tableData) {
+            foreach($tableData["deletes"] as $rec) {
+                ($this->commitDelete($tableName, $rec)) ? $numSuccess++ : $numFail++;
             }
         }
 
@@ -439,6 +445,17 @@ class SyncCompareCatalog {
         $quotedVal = $this->db->quote($recPrimaryValue);
         $sql .= " WHERE $primaryField=$quotedVal;";
 
+        $result = $this->db->query($sql);
+        // returns success/failure of query based on number of affected rows
+        return $result->rowCount() == 1;
+    }
+
+    private function commitDelete($tableName, $rec) {
+        $primaryField = $this->getPrimaryField($tableName);
+        $primaryFieldVal = $rec[$primaryField];
+        $quotedVal = $this->db->quote($primaryFieldVal);
+
+        $sql = "DELETE FROM ".prefixTable($tableName)." WHERE $primaryField=$quotedVal;";
         $result = $this->db->query($sql);
         // returns success/failure of query based on number of affected rows
         return $result->rowCount() == 1;
