@@ -14,3 +14,6 @@ themes/formulize_mobile_app/.sass-cache/
 *.db
 formulize-docs/_site
 .DS_Store
+mainfile.php
+.gitignore
+.idea

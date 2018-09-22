@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="bc42f9ab-5ee5-4b78-86e8-78c660133264" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/mainfile.php" beforeDir="false" afterPath="$PROJECT_DIR$/mainfile.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/formulize/include/formdisplay.php" beforeDir="false" afterPath="$PROJECT_DIR$/modules/formulize/include/formdisplay.php" afterDir="false" />
-    </list>
+    <list default="true" id="bc42f9ab-5ee5-4b78-86e8-78c660133264" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -68,8 +65,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/modules/formulize/include/formdisplay.php">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="225">
-              <caret line="95" selection-start-line="95" selection-end-line="106" selection-end-column="19" />
+            <state relative-caret-position="330">
+              <caret line="102" column="30" lean-forward="true" selection-start-line="102" selection-start-column="30" selection-end-line="102" selection-end-column="30" />
               <folding>
                 <element signature="e#72#78#1" expanded="true" />
                 <element signature="n#style#0;n#td#0;n#tr#0;n#table#0;n#!!top" expanded="true" />
@@ -268,12 +265,12 @@
       <updated>1537418358623</updated>
       <workItem from="1537418362626" duration="819000" />
       <workItem from="1537478109358" duration="1195000" />
-      <workItem from="1537534622222" duration="22876000" />
+      <workItem from="1537534622222" duration="23478000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="24890000" />
+    <option name="totallyTimeSpent" value="25492000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="43" y="25" width="1323" height="743" extended-state="6" />
@@ -382,8 +379,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/modules/formulize/include/formdisplay.php">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="225">
-          <caret line="95" selection-start-line="95" selection-end-line="106" selection-end-column="19" />
+        <state relative-caret-position="330">
+          <caret line="102" column="30" lean-forward="true" selection-start-line="102" selection-start-column="30" selection-end-line="102" selection-end-column="30" />
           <folding>
             <element signature="e#72#78#1" expanded="true" />
             <element signature="n#style#0;n#td#0;n#tr#0;n#table#0;n#!!top" expanded="true" />
