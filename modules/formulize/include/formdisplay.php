@@ -182,6 +182,7 @@ class formulize_themeForm extends XoopsThemeForm {
 					$checkConditionalRow = false;
 				}
 				$js = $elt->renderValidationJS();
+
 				if($js AND $checkConditionalRow) {
 					$fullJs .= "if(window.document.getElementById('formulize-".$elt->getName()."').style.display != 'none') {\n".$js."\n}\n\n";
 				} elseif($js) {
@@ -2693,7 +2694,7 @@ function showPop(url) {
 	window.formulize_popup.focus();
 }
 
-function validateAndSubmit(leave) {
+function validateAndSubmit(flag) {
     var formulize_numbersonly_found= false;
     jQuery(".numbers-only-textbox").each(function() {
         if(jQuery(this).val().match(/[a-z]/i) !== null) {
@@ -2712,7 +2713,23 @@ function validateAndSubmit(leave) {
 <?php
 if(!$nosave) { // need to check for add or update permissions on the current user and this entry before we include this javascript, otherwise they should not be able to save the form
 ?>
-	var validate = xoopsFormValidate_formulize();
+	var validate = true;
+
+    if(flag == 'sub_del'){
+        // skip validation for entries that are set for deletion
+        jQuery("input[name^='delbox']:checked").each(function(){
+            entry = jQuery(this);
+            if (!this.checked) {
+                console.log($(this).val() + " is not checked. Validating.");
+                validate = xoopsFormValidate_formulize();
+            }
+        });
+    } else {
+        validate = xoopsFormValidate_formulize();
+    }
+    console.log("Validate - flag:"+flag);
+
+
 	// this is an optional form validation function which can be provided by a screen template or form text element
 	if (window.formulizeExtraFormValidation && typeof(window.formulizeExtraFormValidation) === 'function') {
 		validate = window.formulizeExtraFormValidation();
@@ -2739,7 +2756,7 @@ if(!$nosave) { // need to check for add or update permissions on the current use
             window.scrollTo(0,0);
             formulizechanged = 0; // don't want to trigger the beforeunload warning
         }
-        if (leave) {
+        if (flag == 'leave') {
             jQuery('#save_and_leave').val(1);
         }
         window.document.formulize.submit();
@@ -2815,7 +2832,7 @@ print "	function sub_del(sfid) {\n";
 print "		var answer = confirm ('" . _formulize_DEL_ENTRIES . "')\n";
 print "		if (answer) {\n";
 print "			document.formulize.deletesubsflag.value=sfid;\n";
-print "			validateAndSubmit();\n";
+print "			validateAndSubmit('sub_del');\n";
 print "		} else {\n";
 print "			return false;\n";
 print "		}\n";
